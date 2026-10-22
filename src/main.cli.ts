@@ -3,12 +3,14 @@ import { program } from 'commander';
 import { Command } from './cli/interfaces/command.interface.js';
 import { HelpCommand } from './cli/commands/help.command.js';
 import { VersionCommand } from './cli/commands/version.command.js';
+import { GenerateCommand } from './cli/commands/generate.command.js';
 import { ImportCommand } from './cli/commands/import.command.js';
 
 const commands: Command[] = [
   new HelpCommand(),
   new VersionCommand(),
   new ImportCommand(),
+  new GenerateCommand(),
 ];
 
 program.helpOption(false);
@@ -27,7 +29,7 @@ for (const command of commands) {
 
   if (value) {
     const args = Array.isArray(value) ? value : [];
-    command.call(args);
+    await command.call(args);
     isCommandCalled = true;
     break;
   }

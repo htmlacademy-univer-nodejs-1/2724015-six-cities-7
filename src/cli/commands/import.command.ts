@@ -1,38 +1,57 @@
-import { readFileSync } from 'node:fs';
+import { createReadStream } from 'node:fs';
+import { once } from 'node:events';
+import { createInterface } from 'node:readline';
+import { inspect } from 'node:util';
 import { Command } from '../interfaces/command.interface.js';
 
 export class ImportCommand implements Command {
   public readonly name = 'import';
 
-  public call(args: string[]): void {
+  public async call(args: string[]): Promise<void> {
     const filePath = args[0];
 
-    if (!filePath) {
+    if (!filePath || args.length !== 1) {
       console.error('Укажите путь к файлу: --import <path>');
+      process.exitCode = 1;
       return;
     }
 
-    let fileContent: string;
+    const stream = createReadStream(filePath, 'utf-8');
+    const lines = createInterface({ input: stream, crlfDelay: Infinity });
+    let headers: string[] = [];
 
     try {
-      fileContent = readFileSync(filePath, 'utf-8');
-    } catch {
-      console.error(`Не удалось прочитать файл: ${filePath}`);
-      return;
-    }
+      for await (const line of lines) {
+        if (!line.trim()) {
+          continue;
+        }
 
-    const lines = fileContent.trim().split('\n');
-    const headers = lines[0].split('\t');
+        if (headers.length === 0) {
+          headers = line.split('\t');
+          continue;
+        }
 
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split('\t');
-      const offer: Record<string, string> = {};
+        const values = line.split('\t');
+        const offer: Record<string, string> = {};
 
-      for (let j = 0; j < headers.length; j++) {
-        offer[headers[j]] = values[j];
+        if (values.length !== headers.length) {
+          throw new Error('Количество полей не совпадает с заголовком TSV');
+        }
+
+        for (let i = 0; i < headers.length; i++) {
+          offer[headers[i]] = values[i];
+        }
+
+        if (!process.stdout.write(`${inspect(offer)}\n`)) {
+          await once(process.stdout, 'drain');
+        }
       }
-
-      console.info(offer);
+    } catch (error) {
+      console.error(`Не удалось импортировать файл ${filePath}:`, (error as Error).message);
+      process.exitCode = 1;
+    } finally {
+      lines.close();
+      stream.destroy();
     }
   }
 }
