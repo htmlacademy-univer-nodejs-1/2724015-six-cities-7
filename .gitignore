@@ -12,3 +12,5 @@ coverage
 
 *.tsv
 !mocks/test.tsv
+
+.env
