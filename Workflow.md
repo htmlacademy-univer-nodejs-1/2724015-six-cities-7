@@ -83,3 +83,35 @@ npm start
 ### Остальное
 
 Все остальные файлы в проекте являются служебными. Пожалуйста, не удаляйте и не изменяйте их самовольно. Только если того требует задание или наставник.
+
+#### Запустить тестовый REST API
+
+```bash
+npm run mock-server
+```
+
+Запускает JSON-server на порту 3000 с данными из `mocks/mock-server-data.json`.
+
+#### Сгенерировать тестовые предложения
+
+Сначала запустите тестовый REST API, затем в другом терминале выполните:
+
+```bash
+npm run compile
+node dist/main.cli.js --generate 100 mocks/generated.tsv http://localhost:3000/db
+```
+
+Первый аргумент — положительное целое количество предложений, второй — путь к TSV, третий — URL объекта с массивом `offers`. Файл перезаписывается. TSV содержит заголовок и по одной строке на предложение. Сгенерированные TSV исключены из Git, кроме исходного `mocks/test.tsv`.
+
+#### Импортировать предложения
+
+```bash
+node dist/main.cli.js --import mocks/generated.tsv
+```
+
+Читает TSV по строкам и выводит предложения в консоль. Для проверки больших файлов вывод можно перенаправить:
+
+```bash
+node dist/main.cli.js --generate 3500000 mocks/large.tsv http://localhost:3000/db
+node dist/main.cli.js --import mocks/large.tsv > /dev/null
+```

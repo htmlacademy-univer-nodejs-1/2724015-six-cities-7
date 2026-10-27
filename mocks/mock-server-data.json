@@ -1,0 +1,148 @@
+{
+  "offers": [
+    {
+      "title": "Уютное жильё в городе Paris",
+      "description": "Светлое и просторное жильё в городе Paris. Рядом находятся остановки транспорта, магазины и уютные кафе. Здесь есть всё необходимое для отдыха.",
+      "city": "Paris",
+      "previewImage": "https://example.com/images/1-preview.jpg",
+      "images": [
+        "https://example.com/images/1-1.jpg",
+        "https://example.com/images/1-2.jpg",
+        "https://example.com/images/1-3.jpg",
+        "https://example.com/images/1-4.jpg",
+        "https://example.com/images/1-5.jpg",
+        "https://example.com/images/1-6.jpg"
+      ],
+      "type": "apartment",
+      "amenities": [
+        "Breakfast",
+        "Air conditioning",
+        "Washer",
+        "Towels"
+      ],
+      "author": "user1",
+      "latitude": 48.85661,
+      "longitude": 2.351499
+    },
+    {
+      "title": "Уютное жильё в городе Cologne",
+      "description": "Светлое и просторное жильё в городе Cologne. Рядом находятся остановки транспорта, магазины и уютные кафе. Здесь есть всё необходимое для отдыха.",
+      "city": "Cologne",
+      "previewImage": "https://example.com/images/2-preview.jpg",
+      "images": [
+        "https://example.com/images/2-1.jpg",
+        "https://example.com/images/2-2.jpg",
+        "https://example.com/images/2-3.jpg",
+        "https://example.com/images/2-4.jpg",
+        "https://example.com/images/2-5.jpg",
+        "https://example.com/images/2-6.jpg"
+      ],
+      "type": "house",
+      "amenities": [
+        "Laptop friendly workspace",
+        "Baby seat",
+        "Washer",
+        "Fridge"
+      ],
+      "author": "user2",
+      "latitude": 50.938361,
+      "longitude": 6.959974
+    },
+    {
+      "title": "Уютное жильё в городе Brussels",
+      "description": "Светлое и просторное жильё в городе Brussels. Рядом находятся остановки транспорта, магазины и уютные кафе. Здесь есть всё необходимое для отдыха.",
+      "city": "Brussels",
+      "previewImage": "https://example.com/images/3-preview.jpg",
+      "images": [
+        "https://example.com/images/3-1.jpg",
+        "https://example.com/images/3-2.jpg",
+        "https://example.com/images/3-3.jpg",
+        "https://example.com/images/3-4.jpg",
+        "https://example.com/images/3-5.jpg",
+        "https://example.com/images/3-6.jpg"
+      ],
+      "type": "room",
+      "amenities": [
+        "Breakfast",
+        "Air conditioning",
+        "Washer",
+        "Towels"
+      ],
+      "author": "user3",
+      "latitude": 50.846557,
+      "longitude": 4.351697
+    },
+    {
+      "title": "Уютное жильё в городе Amsterdam",
+      "description": "Светлое и просторное жильё в городе Amsterdam. Рядом находятся остановки транспорта, магазины и уютные кафе. Здесь есть всё необходимое для отдыха.",
+      "city": "Amsterdam",
+      "previewImage": "https://example.com/images/4-preview.jpg",
+      "images": [
+        "https://example.com/images/4-1.jpg",
+        "https://example.com/images/4-2.jpg",
+        "https://example.com/images/4-3.jpg",
+        "https://example.com/images/4-4.jpg",
+        "https://example.com/images/4-5.jpg",
+        "https://example.com/images/4-6.jpg"
+      ],
+      "type": "hotel",
+      "amenities": [
+        "Laptop friendly workspace",
+        "Baby seat",
+        "Washer",
+        "Fridge"
+      ],
+      "author": "user4",
+      "latitude": 52.370216,
+      "longitude": 4.895168
+    },
+    {
+      "title": "Уютное жильё в городе Hamburg",
+      "description": "Светлое и просторное жильё в городе Hamburg. Рядом находятся остановки транспорта, магазины и уютные кафе. Здесь есть всё необходимое для отдыха.",
+      "city": "Hamburg",
+      "previewImage": "https://example.com/images/5-preview.jpg",
+      "images": [
+        "https://example.com/images/5-1.jpg",
+        "https://example.com/images/5-2.jpg",
+        "https://example.com/images/5-3.jpg",
+        "https://example.com/images/5-4.jpg",
+        "https://example.com/images/5-5.jpg",
+        "https://example.com/images/5-6.jpg"
+      ],
+      "type": "apartment",
+      "amenities": [
+        "Breakfast",
+        "Air conditioning",
+        "Washer",
+        "Towels"
+      ],
+      "author": "user5",
+      "latitude": 53.550341,
+      "longitude": 10.000654
+    },
+    {
+      "title": "Уютное жильё в городе Dusseldorf",
+      "description": "Светлое и просторное жильё в городе Dusseldorf. Рядом находятся остановки транспорта, магазины и уютные кафе. Здесь есть всё необходимое для отдыха.",
+      "city": "Dusseldorf",
+      "previewImage": "https://example.com/images/6-preview.jpg",
+      "images": [
+        "https://example.com/images/6-1.jpg",
+        "https://example.com/images/6-2.jpg",
+        "https://example.com/images/6-3.jpg",
+        "https://example.com/images/6-4.jpg",
+        "https://example.com/images/6-5.jpg",
+        "https://example.com/images/6-6.jpg"
+      ],
+      "type": "house",
+      "amenities": [
+        "Laptop friendly workspace",
+        "Baby seat",
+        "Washer",
+        "Fridge"
+      ],
+      "author": "user6",
+      "latitude": 51.225402,
+      "longitude": 6.776314
+    }
+  ]
+}
