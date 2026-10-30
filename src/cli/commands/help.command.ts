@@ -14,7 +14,7 @@ export class HelpCommand implements Command {
     --version:                   # выводит номер версии
     --help:                      # печатает этот текст
     --generate <n> <filepath> <url>: # создаёт TSV с тестовыми предложениями
-    --import <path>:             # импортирует данные из TSV
+    --import <path> <mongodb-uri>:             # импортирует данные из TSV
 `);
   }
 }
