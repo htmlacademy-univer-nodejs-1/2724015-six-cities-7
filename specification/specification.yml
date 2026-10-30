@@ -1,0 +1,946 @@
+openapi: 3.0.3
+info:
+  title: API проекта «Шесть городов»
+  version: 1.0.0
+  description: >-
+    API для поиска предложений аренды, регистрации пользователей,
+    работы с избранным и комментариями. Для защищённых операций
+    передавайте JWT в заголовке Authorization в формате Bearer <token>.
+    Пароли и их хеши не возвращаются в ответах API.
+    Спецификация описывает планируемый контракт HTTP API.
+servers:
+  - url: http://localhost:3000
+    description: Локальный сервер разработки
+tags:
+  - name: Offers
+    description: Предложения аренды
+  - name: Users
+    description: Регистрация, авторизация и аватары пользователей
+  - name: Favorites
+    description: Избранные предложения текущего пользователя
+  - name: Comments
+    description: Комментарии к предложениям
+security: []
+paths:
+  /users/register:
+    post:
+      tags: [Users]
+      operationId: registerUser
+      summary: Зарегистрировать пользователя
+      description: Создаёт пользователя с уникальным email. Пароль сохраняется в виде хеша
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterUser'
+      responses:
+        '201':
+          description: Пользователь зарегистрирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Пользователь с таким email уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /users/login:
+    post:
+      tags: [Users]
+      operationId: loginUser
+      summary: Войти в приложение
+      description: Проверяет email и пароль, возвращает пользователя и JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginUser'
+      responses:
+        '200':
+          description: Пользователь авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Authentication'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Неверный email или пароль
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      tags: [Users]
+      operationId: checkAuthentication
+      summary: Проверить авторизацию
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Токен действителен, возвращены данные текущего пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /users/avatar:
+    post:
+      tags: [Users]
+      operationId: uploadAvatar
+      summary: Загрузить аватар текущего пользователя
+      description: Пользователь определяется по токену. Новый аватар заменяет предыдущий
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [avatar]
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+                  description: Изображение в формате JPEG или PNG
+            encoding:
+              avatar:
+                contentType: image/jpeg, image/png
+      responses:
+        '200':
+          description: Аватар загружен, возвращены обновлённые данные пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '415':
+          description: Формат изображения не поддерживается
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /offers:
+    get:
+      tags: [Offers]
+      operationId: getOffers
+      summary: Получить список предложений
+      description: >-
+        Предложения отсортированы по дате публикации от новых к старым.
+        По умолчанию возвращается не более 60 предложений.
+        Токен необязателен, но позволяет получить признак избранного текущего пользователя.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Максимальное количество предложений в ответе
+          schema:
+            type: integer
+            minimum: 1
+            default: 60
+      responses:
+        '200':
+          description: Список предложений. Если предложений нет, возвращается пустой массив
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OfferSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Offers]
+      operationId: createOffer
+      summary: Создать предложение
+      description: >-
+        Автор определяется по токену. Рейтинг и количество комментариев равны нулю.
+        Идентификатор и служебные даты устанавливаются сервером.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOffer'
+      responses:
+        '201':
+          description: Предложение создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Offer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /offers/premium:
+    get:
+      tags: [Offers]
+      operationId: getPremiumOffers
+      summary: Получить премиальные предложения города
+      description: >-
+        Возвращает не более трёх премиальных предложений указанного города,
+        отсортированных по дате публикации от новых к старым.
+        Токен необязателен и используется для определения избранного.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/City'
+      responses:
+        '200':
+          description: Премиальные предложения. Если их нет, возвращается пустой массив
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 3
+                items:
+                  $ref: '#/components/schemas/OfferSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /offers/{offerId}:
+    parameters:
+      - $ref: '#/components/parameters/OfferId'
+    get:
+      tags: [Offers]
+      operationId: getOffer
+      summary: Получить подробную информацию о предложении
+      description: Токен необязателен и используется для определения избранного
+      security:
+        - {}
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Подробная информация о предложении
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Offer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Offers]
+      operationId: updateOffer
+      summary: Изменить предложение
+      description: >-
+        Доступно только автору. Изменяются только переданные поля.
+        Автор, рейтинг, количество комментариев и служебные даты
+        не принимаются в теле запроса.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOffer'
+      responses:
+        '200':
+          description: Обновлённое предложение
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Offer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Offers]
+      operationId: deleteOffer
+      summary: Удалить предложение
+      description: >-
+        Доступно только автору. Вместе с предложением удаляются его комментарии
+        и ссылки на него в избранном пользователей.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Предложение удалено. Тело ответа отсутствует
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /offers/{offerId}/comments:
+    parameters:
+      - $ref: '#/components/parameters/OfferId'
+    get:
+      tags: [Comments]
+      operationId: getComments
+      summary: Получить комментарии предложения
+      description: Возвращает не более 50 последних комментариев от новых к старым
+      responses:
+        '200':
+          description: Список комментариев. Если комментариев нет, возвращается пустой массив
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 50
+                items:
+                  $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Comments]
+      operationId: createComment
+      summary: Добавить комментарий к предложению
+      description: >-
+        Автор определяется по токену, предложение — по offerId.
+        Дата устанавливается сервером. После добавления пересчитываются рейтинг
+        предложения по всем его комментариям и количество комментариев.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateComment'
+      responses:
+        '201':
+          description: Комментарий создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /favorites:
+    get:
+      tags: [Favorites]
+      operationId: getFavorites
+      summary: Получить избранные предложения
+      description: Возвращает избранные предложения текущего пользователя от новых к старым
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Список избранного. Если избранного нет, возвращается пустой массив
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OfferSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /favorites/{offerId}:
+    parameters:
+      - $ref: '#/components/parameters/OfferId'
+    post:
+      tags: [Favorites]
+      operationId: addFavorite
+      summary: Добавить предложение в избранное
+      description: >-
+        Добавляет предложение в избранное текущего пользователя.
+        Повторное добавление не создаёт дубликат. В ответе isFavorite равен true.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Предложение добавлено в избранное
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Offer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Favorites]
+      operationId: removeFavorite
+      summary: Удалить предложение из избранного
+      description: >-
+        Удаляет предложение из избранного текущего пользователя.
+        Повторное удаление возвращает тот же результат. В ответе isFavorite равен false.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Предложение удалено из избранного
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Offer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    OfferId:
+      name: offerId
+      in: path
+      required: true
+      description: Идентификатор предложения
+      schema:
+        $ref: '#/components/schemas/Id'
+    City:
+      name: city
+      in: query
+      required: true
+      description: Город, для которого запрашиваются предложения
+      schema:
+        $ref: '#/components/schemas/City'
+  responses:
+    BadRequest:
+      description: Некорректные параметры запроса или тело запроса
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Токен отсутствует, недействителен или срок его действия истёк
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Изменять или удалять предложение может только его автор
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Предложение с указанным идентификатором не найдено
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Id:
+      type: string
+      description: Идентификатор документа MongoDB
+      pattern: '^[a-fA-F0-9]{24}$'
+      example: 507f1f77bcf86cd799439011
+    City:
+      type: string
+      enum:
+        - Paris
+        - Cologne
+        - Brussels
+        - Amsterdam
+        - Hamburg
+        - Dusseldorf
+      example: Paris
+    HousingType:
+      type: string
+      enum:
+        - apartment
+        - house
+        - room
+        - hotel
+      example: apartment
+    Amenity:
+      type: string
+      enum:
+        - Breakfast
+        - Air conditioning
+        - Laptop friendly workspace
+        - Baby seat
+        - Washer
+        - Towels
+        - Fridge
+      example: Breakfast
+    UserType:
+      type: string
+      enum:
+        - regular
+        - pro
+      example: regular
+    User:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - avatar
+        - type
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        name:
+          type: string
+          example: Максим
+        email:
+          type: string
+          format: email
+          example: user1@example.com
+        avatar:
+          type: string
+          description: URL аватара. Пустая строка, если аватар не загружен
+          example: http://localhost:3000/uploads/avatar.jpg
+        type:
+          $ref: '#/components/schemas/UserType'
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+    RegisterUser:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - email
+        - password
+        - type
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 15
+          example: Максим
+        email:
+          type: string
+          format: email
+          example: user1@example.com
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 6
+          maxLength: 12
+          example: example123
+        type:
+          $ref: '#/components/schemas/UserType'
+    LoginUser:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user1@example.com
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 6
+          maxLength: 12
+          example: example123
+    Authentication:
+      type: object
+      required:
+        - token
+        - user
+      properties:
+        token:
+          type: string
+          description: JWT для последующих запросов
+        user:
+          $ref: '#/components/schemas/User'
+    CreateOffer:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+        - description
+        - date
+        - city
+        - previewImage
+        - images
+        - isPremium
+        - type
+        - rooms
+        - guests
+        - price
+        - amenities
+        - latitude
+        - longitude
+      properties:
+        title:
+          type: string
+          minLength: 10
+          maxLength: 100
+          example: Уютная квартира в центре Парижа
+        description:
+          type: string
+          minLength: 20
+          maxLength: 1024
+          example: Просторная и светлая квартира рядом с основными достопримечательностями города.
+        date:
+          type: string
+          format: date-time
+          description: Дата публикации предложения
+          example: '2026-10-04T10:00:00.000Z'
+        city:
+          $ref: '#/components/schemas/City'
+        previewImage:
+          type: string
+          format: uri
+          example: https://example.com/images/preview-paris.jpg
+        images:
+          type: array
+          minItems: 6
+          maxItems: 6
+          items:
+            type: string
+            format: uri
+          example:
+            - https://example.com/images/paris-1.jpg
+            - https://example.com/images/paris-2.jpg
+            - https://example.com/images/paris-3.jpg
+            - https://example.com/images/paris-4.jpg
+            - https://example.com/images/paris-5.jpg
+            - https://example.com/images/paris-6.jpg
+        isPremium:
+          type: boolean
+          example: false
+        type:
+          $ref: '#/components/schemas/HousingType'
+        rooms:
+          type: integer
+          minimum: 1
+          maximum: 8
+          example: 2
+        guests:
+          type: integer
+          minimum: 1
+          maximum: 10
+          example: 4
+        price:
+          type: integer
+          minimum: 100
+          maximum: 100000
+          description: Стоимость аренды за ночь
+          example: 75000
+        amenities:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Amenity'
+          example:
+            - Breakfast
+            - Washer
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+          example: 48.85661
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+          example: 2.351499
+    UpdateOffer:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 10
+          maxLength: 100
+          example: Уютная квартира в центре Парижа
+        description:
+          type: string
+          minLength: 20
+          maxLength: 1024
+          example: Просторная и светлая квартира рядом с основными достопримечательностями города.
+        date:
+          type: string
+          format: date-time
+          description: Дата публикации предложения
+          example: '2026-10-04T10:00:00.000Z'
+        city:
+          $ref: '#/components/schemas/City'
+        previewImage:
+          type: string
+          format: uri
+          example: https://example.com/images/preview-paris.jpg
+        images:
+          type: array
+          minItems: 6
+          maxItems: 6
+          items:
+            type: string
+            format: uri
+          example:
+            - https://example.com/images/paris-1.jpg
+            - https://example.com/images/paris-2.jpg
+            - https://example.com/images/paris-3.jpg
+            - https://example.com/images/paris-4.jpg
+            - https://example.com/images/paris-5.jpg
+            - https://example.com/images/paris-6.jpg
+        isPremium:
+          type: boolean
+          example: false
+        type:
+          $ref: '#/components/schemas/HousingType'
+        rooms:
+          type: integer
+          minimum: 1
+          maximum: 8
+          example: 2
+        guests:
+          type: integer
+          minimum: 1
+          maximum: 10
+          example: 4
+        price:
+          type: integer
+          minimum: 100
+          maximum: 100000
+          description: Стоимость аренды за ночь
+          example: 75000
+        amenities:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Amenity'
+          example:
+            - Breakfast
+            - Washer
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+          example: 48.85661
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+          example: 2.351499
+    OfferSummary:
+      type: object
+      required:
+        - id
+        - title
+        - date
+        - city
+        - previewImage
+        - isPremium
+        - isFavorite
+        - rating
+        - type
+        - price
+        - commentCount
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        title:
+          type: string
+          example: Уютная квартира в центре Парижа
+        date:
+          type: string
+          format: date-time
+        city:
+          $ref: '#/components/schemas/City'
+        previewImage:
+          type: string
+          format: uri
+          example: https://example.com/images/preview-paris.jpg
+        isPremium:
+          type: boolean
+          example: false
+        isFavorite:
+          type: boolean
+          description: Признак избранного для текущего пользователя. Для гостя всегда false
+          example: false
+        rating:
+          type: number
+          minimum: 0
+          maximum: 5
+          description: Средняя оценка комментариев с точностью до одного знака. Без комментариев — 0
+          example: 4.8
+        type:
+          $ref: '#/components/schemas/HousingType'
+        price:
+          type: integer
+          example: 75000
+        commentCount:
+          type: integer
+          minimum: 0
+          example: 2
+    Offer:
+      allOf:
+        - $ref: '#/components/schemas/OfferSummary'
+        - type: object
+          required:
+            - description
+            - images
+            - rooms
+            - guests
+            - amenities
+            - author
+            - latitude
+            - longitude
+            - createdAt
+            - updatedAt
+          properties:
+            description:
+              type: string
+              example: Просторная и светлая квартира рядом с основными достопримечательностями города.
+            images:
+              type: array
+              minItems: 6
+              maxItems: 6
+              items:
+                type: string
+                format: uri
+            rooms:
+              type: integer
+              example: 2
+            guests:
+              type: integer
+              example: 4
+            amenities:
+              type: array
+              items:
+                $ref: '#/components/schemas/Amenity'
+            author:
+              $ref: '#/components/schemas/User'
+            latitude:
+              type: number
+              format: double
+              example: 48.85661
+            longitude:
+              type: number
+              format: double
+              example: 2.351499
+            createdAt:
+              type: string
+              format: date-time
+              readOnly: true
+            updatedAt:
+              type: string
+              format: date-time
+              readOnly: true
+    CreateComment:
+      type: object
+      additionalProperties: false
+      required:
+        - text
+        - rating
+      properties:
+        text:
+          type: string
+          minLength: 5
+          maxLength: 1024
+          example: Отличная квартира, всё понравилось!
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+    Comment:
+      type: object
+      required:
+        - id
+        - text
+        - rating
+        - author
+        - offerId
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        text:
+          type: string
+          example: Отличная квартира, всё понравилось!
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+        author:
+          $ref: '#/components/schemas/User'
+        offerId:
+          $ref: '#/components/schemas/Id'
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+    Error:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          example: Данные запроса не прошли проверку
+        details:
+          type: array
+          description: Ошибки отдельных полей, если они есть
+          items:
+            type: object
+            required:
+              - field
+              - message
+            properties:
+              field:
+                type: string
+                example: title
+              message:
+                type: string
+                example: Минимальная длина — 10 символов
