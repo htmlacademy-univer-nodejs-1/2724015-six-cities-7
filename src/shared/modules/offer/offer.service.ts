@@ -1,3 +1,5 @@
+import { StatusCodes } from 'http-status-codes';
+import { HttpError } from '../../libs/rest/http-error.js';
 import { injectable } from 'inversify';
 import { PipelineStage, Types } from 'mongoose';
 import { CommentModel } from '../comment/comment.entity.js';
@@ -46,7 +48,7 @@ export class OfferService {
 
   public async create(dto: CreateOfferDto) {
     if (!await UserModel.exists({ _id: dto.author })) {
-      throw new Error('User not found');
+      throw new HttpError(StatusCodes.NOT_FOUND, 'User not found');
     }
     const offer = await OfferModel.create({ ...this.offerFields(dto), author: dto.author });
     return this.findById(offer.id, dto.author);
@@ -67,7 +69,7 @@ export class OfferService {
 
   public async find(count = 60, userId?: string) {
     if (!Number.isInteger(count) || count < 1) {
-      throw new Error('Count must be a positive integer');
+      throw new HttpError(StatusCodes.BAD_REQUEST, 'Count must be a positive integer');
     }
     return OfferModel.aggregate([
       { $sort: { date: -1, _id: -1 } }, { $limit: count },
@@ -93,10 +95,10 @@ export class OfferService {
   public async setFavorite(dto: SetFavoriteDto) {
     const { offerId: id, userId, isFavorite } = dto;
     if (!await OfferModel.exists({ _id: id })) {
-      throw new Error('Offer not found');
+      throw new HttpError(StatusCodes.NOT_FOUND, 'Offer not found');
     }
     if (!await UserModel.exists({ _id: userId })) {
-      throw new Error('User not found');
+      throw new HttpError(StatusCodes.NOT_FOUND, 'User not found');
     }
     const filter = { user: userId, offer: id };
     if (isFavorite) {
@@ -112,7 +114,10 @@ export class OfferService {
       { _id: id, author: authorId }, { $set: this.offerFields(dto) }, { new: true },
     ).exec();
     if (!offer) {
-      throw new Error('Offer not found or access denied');
+      if (await OfferModel.exists({ _id: id })) {
+        throw new HttpError(StatusCodes.FORBIDDEN, 'Access denied');
+      }
+      throw new HttpError(StatusCodes.NOT_FOUND, 'Offer not found');
     }
     return this.findById(id, authorId);
   }
@@ -120,7 +125,10 @@ export class OfferService {
   public async delete(id: string, authorId: string): Promise<void> {
     const offer = await OfferModel.findOneAndDelete({ _id: id, author: authorId }).exec();
     if (!offer) {
-      throw new Error('Offer not found or access denied');
+      if (await OfferModel.exists({ _id: id })) {
+        throw new HttpError(StatusCodes.FORBIDDEN, 'Access denied');
+      }
+      throw new HttpError(StatusCodes.NOT_FOUND, 'Offer not found');
     }
     await CommentModel.deleteMany({ offer: id }).exec();
     await FavoriteModel.deleteMany({ offer: id }).exec();
