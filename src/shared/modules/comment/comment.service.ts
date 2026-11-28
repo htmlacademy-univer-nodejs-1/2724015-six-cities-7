@@ -1,3 +1,5 @@
+import { StatusCodes } from 'http-status-codes';
+import { HttpError } from '../../libs/rest/http-error.js';
 import { injectable } from 'inversify';
 import { OfferModel } from '../offer/offer.entity.js';
 import { UserModel } from '../user/user.entity.js';
@@ -8,10 +10,10 @@ import { CreateCommentDto } from './create-comment.dto.js';
 export class CommentService {
   public async create(dto: CreateCommentDto) {
     if (!await OfferModel.exists({ _id: dto.offer })) {
-      throw new Error('Offer not found');
+      throw new HttpError(StatusCodes.NOT_FOUND, 'Offer not found');
     }
     if (!await UserModel.exists({ _id: dto.author })) {
-      throw new Error('User not found');
+      throw new HttpError(StatusCodes.NOT_FOUND, 'User not found');
     }
     const comment = await CommentModel.create({
       text: dto.text, rating: dto.rating, author: dto.author, offer: dto.offer,
