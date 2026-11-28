@@ -9,7 +9,7 @@ const logger = container.get<Logger>(Component.Logger);
 
 try {
   const application = container.get<Application>(Component.Application);
-  application.init();
+  await application.init();
 } catch (error) {
   logger.error((error as Error).message);
   process.exitCode = 1;

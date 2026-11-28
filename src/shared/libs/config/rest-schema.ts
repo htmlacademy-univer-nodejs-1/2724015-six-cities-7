@@ -7,6 +7,16 @@ export const restSchema: Schema<RestSchema> = {
     default: null,
     env: 'PORT',
   },
+  DB_URI: {
+    format: (value: string) => {
+      if (typeof value !== 'string' || !/^mongodb(?:\+srv)?:\/\//.test(value)) {
+        throw new Error('Укажите строку подключения MongoDB');
+      }
+    },
+    default: null,
+    env: 'DB_URI',
+    sensitive: true,
+  },
   DB_HOST: {
     format: 'ipaddress',
     default: null,
