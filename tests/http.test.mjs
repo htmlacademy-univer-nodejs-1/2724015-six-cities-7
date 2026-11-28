@@ -53,6 +53,9 @@ test('Express handles resource routes and synchronous/asynchronous failures', { 
     assert.equal(invalidJson.status, 400);
     assert.equal((await invalidJson.json()).type, 'HTTP_ERROR');
 
+    for (const invalid of [null, [], {}, { name: 'A' }]) {
+      assert.equal((await request('/users', 'POST', invalid)).status, 400);
+    }
     const ownerData = { name: 'Owner', email: 'owner@example.com', password: 'secret123', type: 'pro' };
     const owner = await request('/users', 'POST', ownerData);
     assert.equal(owner.status, 201);
@@ -61,31 +64,33 @@ test('Express handles resource routes and synchronous/asynchronous failures', { 
     assert.equal(owner.body.passwordHash, undefined);
     assert.equal(owner.body.password, undefined);
     assert.equal((await request('/users', 'POST', ownerData)).status, 409);
-    assert.equal((await request('/auth/login', 'POST', { email: ownerData.email, password: 'wrong' })).status, 401);
-    const login = await request('/auth/login', 'POST', ownerData);
+    for (const invalid of [{ name: '' }, { name: 'a'.repeat(16) }, { email: 'bad' }, { password: 'short' },
+      { password: 'a'.repeat(13) }, { type: 'admin' }, { avatar: 'image.gif' }]) {
+      assert.equal((await request('/users', 'POST', { ...ownerData, ...invalid })).status, 400);
+    }
+    assert.equal((await request('/auth/login', 'POST', { email: ownerData.email, password: 'wrong123' })).status, 401);
+    const login = await request('/auth/login', 'POST', { email: ownerData.email, password: ownerData.password });
     assert.equal(login.status, 200);
     const token = login.body.token;
     assert.ok(token);
     assert.equal((await request('/auth/login', 'GET', undefined, token)).body.id, owner.body.id);
     assert.equal((await request('/auth/login')).status, 401);
     assert.equal((await request('/auth/login', 'GET', undefined, `${token}tampered`)).status, 401);
-    assert.equal((await request('/users', 'POST', ownerData, token)).status, 403);
+    assert.equal((await request('/users', 'POST', ownerData, token)).status, 409);
 
     const guestData = { name: 'Guest', email: 'guest@example.com', password: 'secret456', type: 'regular' };
     const guest = await request('/users', 'POST', guestData);
-    const guestToken = (await request('/auth/login', 'POST', guestData)).body.token;
     const data = {
       title: 'Apartment in Paris', description: 'Spacious apartment in the city center',
-      date: '2026-01-01', city: 'Paris', previewImage: 'preview.jpg',
-      images: Array(6).fill('photo.jpg'), isPremium: true, type: 'apartment',
+      date: '2026-01-01', city: 'Paris', previewImage: 'https://example.com/preview.jpg',
+      images: Array(6).fill('https://example.com/photo.jpg'), isPremium: true, type: 'apartment',
       rooms: 2, guests: 3, price: 150, amenities: ['Breakfast'], author: guest.body.id,
       latitude: 48.85661, longitude: 2.351499,
     };
-    assert.equal((await request('/offers', 'POST', data)).status, 401);
-    const offer = await request('/offers', 'POST', data, token);
+    const offer = await request('/offers', 'POST', data);
     assert.equal(offer.status, 201);
     const id = offer.body.id;
-    assert.equal(offer.body.author.id, owner.body.id);
+    assert.equal(offer.body.author.id, guest.body.id);
     assert.equal(offer.body.author.passwordHash, undefined);
     assert.equal((await request(`/offers/${id}`)).status, 200);
     const list = await request('/offers');
@@ -93,18 +98,52 @@ test('Express handles resource routes and synchronous/asynchronous failures', { 
     assert.equal(list.body.length, 1);
     assert.equal(list.body[0].description, undefined);
     assert.equal((await request('/offers/premium?city=Paris')).body.length, 1);
-    assert.equal((await request('/offers/favorites')).status, 401);
+    assert.equal((await request('/offers/favorites')).status, 400);
     assert.equal((await request('/offers?count=-1')).status, 400);
     assert.equal((await request('/offers/invalid-id')).status, 400);
+    for (const method of ['PATCH', 'DELETE']) {
+      assert.equal((await request('/offers/invalid-id', method, { price: 200 })).status, 400);
+    }
+    for (const method of ['POST', 'DELETE']) {
+      assert.equal((await request(`/offers/invalid/favorite?userId=${owner.body.id}`, method)).status, 400);
+    }
     assert.equal((await request('/offers/000000000000000000000000')).status, 404);
-    assert.equal((await request(`/offers/${id}`, 'PATCH', { price: 200 }, guestToken)).status, 403);
+    assert.equal((await request(`/offers/${id}`, 'PATCH', { price: 200 })).status, 200);
     assert.equal((await request(`/offers/${id}`, 'PATCH', { price: 200 }, token)).body.price, 200);
-    assert.equal((await request(`/offers/${id}/favorite`, 'POST', undefined, guestToken)).body.isFavorite, true);
-    assert.equal((await request('/offers/favorites', 'GET', undefined, guestToken)).body.length, 1);
-    assert.equal((await request('/offers/favorites', 'GET', undefined, token)).body.length, 0);
-    assert.equal((await request(`/offers/${id}/favorite`, 'DELETE', undefined, guestToken)).body.isFavorite, false);
-    assert.equal((await request(`/offers/${id}`, 'DELETE', undefined, guestToken)).status, 403);
-    const removed = await request(`/offers/${id}`, 'DELETE', undefined, token);
+    assert.equal((await request(`/offers/${id}/favorite?userId=${guest.body.id}`, 'POST')).body.isFavorite, true);
+    assert.equal((await request(`/offers/favorites?userId=${guest.body.id}`)).body.length, 1);
+    assert.equal((await request(`/offers/favorites?userId=${owner.body.id}`)).body.length, 0);
+    assert.equal((await request(`/offers/${id}/favorite?userId=${guest.body.id}`, 'DELETE')).body.isFavorite, false);
+    const commentData = { text: 'A very pleasant stay', rating: 5, author: owner.body.id };
+    assert.equal((await request(`/offers/${id}/comments`)).body.length, 0);
+    const comment = await request(`/offers/${id}/comments`, 'POST', commentData);
+    assert.equal(comment.status, 201);
+    assert.equal(comment.body.author.id, owner.body.id);
+    assert.equal(comment.body.author.passwordHash, undefined);
+    assert.ok(comment.body.date);
+    assert.equal((await request(`/offers/${id}`)).body.rating, 5);
+    assert.equal((await request(`/offers/${id}`)).body.commentCount, 1);
+    assert.equal((await request(`/offers/${id}/comments`)).body.length, 1);
+    for (const invalid of [ { text: 'bad' }, { rating: 6 }, { rating: 1.5 }, { author: 'bad' }, { author: undefined }, { date: '2020-01-01' } ]) {
+      assert.equal((await request(`/offers/${id}/comments`, 'POST', { ...commentData, ...invalid })).status, 400);
+    }
+    assert.equal((await request(`/offers/${id}/comments`, 'PATCH', commentData)).status, 404);
+    assert.equal((await request('/offers/invalid/comments', 'POST', commentData)).status, 400);
+    assert.equal((await request('/offers/000000000000000000000000/comments')).status, 404);
+    assert.equal((await request(`/offers/${id}/comments`)).body.length, 1);
+    for (const invalid of [ { title: 'short' }, { rooms: 0 }, { guests: 11 }, { price: '200' },
+      { city: 'London' }, { images: [] }, { amenities: [] }, { author: 'bad' }, { latitude: 91 },
+      { isPremium: 'true' }, { date: 'invalid' }, { previewImage: 'invalid' } ]) {
+      assert.equal((await request('/offers', 'POST', { ...data, ...invalid })).status, 400);
+    }
+    for (const invalid of [{ price: null }, { author: owner.body.id }, {}, { rating: 5 }]) {
+      assert.equal((await request(`/offers/${id}`, 'PATCH', invalid)).status, 400);
+    }
+    assert.equal((await request('/offers/premium?city=London')).status, 400);
+    assert.equal((await request('/offers/premium')).status, 400);
+    assert.equal((await request('/offers?userId=bad')).status, 400);
+    assert.equal((await request(`/offers/${id}/favorite?userId=bad`, 'POST')).status, 400);
+    const removed = await request(`/offers/${id}`, 'DELETE');
     assert.equal(removed.status, 204);
     assert.equal(removed.body, null);
     assert.equal((await request(`/offers/${id}`, 'DELETE', undefined, token)).status, 404);

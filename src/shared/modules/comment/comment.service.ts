@@ -8,7 +8,7 @@ import { CreateCommentDto } from './create-comment.dto.js';
 
 @injectable()
 export class CommentService {
-  public async create(dto: CreateCommentDto) {
+  public async create(dto: CreateCommentDto & { offer: string }) {
     if (!await OfferModel.exists({ _id: dto.offer })) {
       throw new HttpError(StatusCodes.NOT_FOUND, 'Offer not found');
     }
@@ -22,6 +22,9 @@ export class CommentService {
   }
 
   public async findByOfferId(offerId: string) {
+    if (!await OfferModel.exists({ _id: offerId })) {
+      throw new HttpError(StatusCodes.NOT_FOUND, 'Offer not found');
+    }
     return CommentModel.find({ offer: offerId }).sort({ date: -1, _id: -1 })
       .limit(50).populate('author').exec();
   }

@@ -9,8 +9,9 @@ import { HttpMethod } from '../../libs/rest/route.interface.js';
 import { toResponse } from '../../libs/rest/response.js';
 import { UserRdo } from '../user/rdo/user.rdo.js';
 import { UserService } from '../user/user.service.js';
-import { getUserId, requireAnonymous, requireAuth } from './auth.middleware.js';
+import { getUserId } from './auth.middleware.js';
 import { AuthService } from './auth.service.js';
+import { ValidateDataMiddleware } from '../../libs/rest/validate-data.middleware.js';
 import { LoginUserDto } from './login-user.dto.js';
 
 @injectable()
@@ -20,8 +21,8 @@ export class AuthController extends Controller {
     @inject(Component.AuthService) private readonly auth: AuthService,
   ) {
     super();
-    this.addRoute({ path: '/login', method: HttpMethod.Post, handler: this.login, middleware: [requireAnonymous] });
-    this.addRoute({ path: '/login', method: HttpMethod.Get, handler: this.check, middleware: [requireAuth] });
+    this.addRoute({ path: '/login', method: HttpMethod.Post, handler: this.login, middleware: [new ValidateDataMiddleware(LoginUserDto)] });
+    this.addRoute({ path: '/login', method: HttpMethod.Get, handler: this.check });
   }
 
   private async login(request: Request<Record<string, string>, unknown, LoginUserDto>, response: Response): Promise<void> {

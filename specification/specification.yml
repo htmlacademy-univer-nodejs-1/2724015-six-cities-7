@@ -4,8 +4,10 @@ info:
   version: 1.0.0
   description: >-
     API для поиска предложений аренды, регистрации пользователей,
-    работы с избранным и комментариями. Для защищённых операций
-    передавайте JWT в заголовке Authorization в формате Bearer <token>.
+    работы с избранным и комментариями. На этапе module7-task1 операции
+    доступны анонимным клиентам: author передаётся в теле создания,
+    userId — в query для избранного. Проверка состояния пользователя
+    использует JWT в заголовке Authorization: Bearer <token>.
     Пароли и их хеши не возвращаются в ответах API.
     Спецификация описывает планируемый контракт HTTP API.
 servers:
@@ -22,7 +24,7 @@ tags:
     description: Комментарии к предложениям
 security: []
 paths:
-  /users/register:
+  /users:
     post:
       tags: [Users]
       operationId: registerUser
@@ -49,7 +51,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /users/login:
+  /auth/login:
     post:
       tags: [Users]
       operationId: loginUser
@@ -95,7 +97,7 @@ paths:
     post:
       tags: [Users]
       operationId: uploadAvatar
-      summary: Загрузить аватар текущего пользователя
+      summary: Загрузить аватар текущего пользователя (планируется)
       description: Пользователь определяется по токену. Новый аватар заменяет предыдущий
       security:
         - bearerAuth: []
@@ -140,7 +142,7 @@ paths:
       description: >-
         Предложения отсортированы по дате публикации от новых к старым.
         По умолчанию возвращается не более 60 предложений.
-        Токен необязателен, но позволяет получить признак избранного текущего пользователя.
+        Параметр userId необязателен и позволяет получить признак избранного пользователя.
       security:
         - {}
         - bearerAuth: []
@@ -163,17 +165,14 @@ paths:
                   $ref: '#/components/schemas/OfferSummary'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
     post:
       tags: [Offers]
       operationId: createOffer
       summary: Создать предложение
       description: >-
-        Автор определяется по токену. Рейтинг и количество комментариев равны нулю.
+        Автор передаётся в поле author. Рейтинг и количество комментариев равны нулю.
         Идентификатор и служебные даты устанавливаются сервером.
-      security:
-        - bearerAuth: []
+      security: []
       requestBody:
         required: true
         content:
@@ -189,8 +188,6 @@ paths:
                 $ref: '#/components/schemas/Offer'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
   /offers/premium:
     get:
       tags: [Offers]
@@ -217,8 +214,6 @@ paths:
                   $ref: '#/components/schemas/OfferSummary'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
   /offers/{offerId}:
     parameters:
       - $ref: '#/components/parameters/OfferId'
@@ -239,8 +234,6 @@ paths:
                 $ref: '#/components/schemas/Offer'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
     patch:
@@ -251,8 +244,7 @@ paths:
         Доступно только автору. Изменяются только переданные поля.
         Автор, рейтинг, количество комментариев и служебные даты
         не принимаются в теле запроса.
-      security:
-        - bearerAuth: []
+      security: []
       requestBody:
         required: true
         content:
@@ -268,8 +260,6 @@ paths:
                 $ref: '#/components/schemas/Offer'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -281,15 +271,12 @@ paths:
       description: >-
         Доступно только автору. Вместе с предложением удаляются его комментарии
         и ссылки на него в избранном пользователей.
-      security:
-        - bearerAuth: []
+      security: []
       responses:
         '204':
           description: Предложение удалено. Тело ответа отсутствует
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -321,11 +308,10 @@ paths:
       operationId: createComment
       summary: Добавить комментарий к предложению
       description: >-
-        Автор определяется по токену, предложение — по offerId.
+        Автор передаётся в поле author, предложение определяется по offerId.
         Дата устанавливается сервером. После добавления пересчитываются рейтинг
         предложения по всем его комментариям и количество комментариев.
-      security:
-        - bearerAuth: []
+      security: []
       requestBody:
         required: true
         content:
@@ -341,18 +327,21 @@ paths:
                 $ref: '#/components/schemas/Comment'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
-  /favorites:
+  /offers/favorites:
+    parameters:
+      - name: userId
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
     get:
       tags: [Favorites]
       operationId: getFavorites
       summary: Получить избранные предложения
       description: Возвращает избранные предложения текущего пользователя от новых к старым
-      security:
-        - bearerAuth: []
+      security: []
       responses:
         '200':
           description: Список избранного. Если избранного нет, возвращается пустой массив
@@ -362,11 +351,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/OfferSummary'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /favorites/{offerId}:
+  /offers/{offerId}/favorite:
     parameters:
       - $ref: '#/components/parameters/OfferId'
+      - name: userId
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
     post:
       tags: [Favorites]
       operationId: addFavorite
@@ -374,8 +366,7 @@ paths:
       description: >-
         Добавляет предложение в избранное текущего пользователя.
         Повторное добавление не создаёт дубликат. В ответе isFavorite равен true.
-      security:
-        - bearerAuth: []
+      security: []
       responses:
         '200':
           description: Предложение добавлено в избранное
@@ -385,8 +376,6 @@ paths:
                 $ref: '#/components/schemas/Offer'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
@@ -396,8 +385,7 @@ paths:
       description: >-
         Удаляет предложение из избранного текущего пользователя.
         Повторное удаление возвращает тот же результат. В ответе isFavorite равен false.
-      security:
-        - bearerAuth: []
+      security: []
       responses:
         '200':
           description: Предложение удалено из избранного
@@ -407,8 +395,6 @@ paths:
                 $ref: '#/components/schemas/Offer'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
 components:
@@ -592,6 +578,7 @@ components:
       type: object
       additionalProperties: false
       required:
+        - author
         - title
         - description
         - date
@@ -607,6 +594,8 @@ components:
         - latitude
         - longitude
       properties:
+        author:
+          $ref: '#/components/schemas/Id'
         title:
           type: string
           minLength: 10
@@ -875,9 +864,12 @@ components:
       type: object
       additionalProperties: false
       required:
+        - author
         - text
         - rating
       properties:
+        author:
+          $ref: '#/components/schemas/Id'
         text:
           type: string
           minLength: 5
@@ -895,9 +887,7 @@ components:
         - text
         - rating
         - author
-        - offerId
-        - createdAt
-        - updatedAt
+        - date
       properties:
         id:
           $ref: '#/components/schemas/Id'
@@ -911,13 +901,7 @@ components:
           example: 5
         author:
           $ref: '#/components/schemas/User'
-        offerId:
-          $ref: '#/components/schemas/Id'
-        createdAt:
-          type: string
-          format: date-time
-          readOnly: true
-        updatedAt:
+        date:
           type: string
           format: date-time
           readOnly: true

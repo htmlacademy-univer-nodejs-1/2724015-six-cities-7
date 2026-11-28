@@ -5,7 +5,7 @@ import { Component } from '../../container/component.js';
 import { Controller } from '../../libs/rest/controller.js';
 import { HttpMethod } from '../../libs/rest/route.interface.js';
 import { toResponse } from '../../libs/rest/response.js';
-import { requireAnonymous } from '../auth/auth.middleware.js';
+import { ValidateDataMiddleware } from '../../libs/rest/validate-data.middleware.js';
 import { CreateUserDto } from './create-user.dto.js';
 import { UserService } from './user.service.js';
 import { UserRdo } from './rdo/user.rdo.js';
@@ -14,7 +14,7 @@ import { UserRdo } from './rdo/user.rdo.js';
 export class UserController extends Controller {
   constructor(@inject(Component.UserService) private readonly users: UserService) {
     super();
-    this.addRoute({ path: '/', method: HttpMethod.Post, handler: this.create, middleware: [requireAnonymous] });
+    this.addRoute({ path: '/', method: HttpMethod.Post, handler: this.create, middleware: [new ValidateDataMiddleware(CreateUserDto)] });
   }
 
   private async create(request: Request<Record<string, string>, unknown, CreateUserDto>, response: Response): Promise<void> {
