@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import 'reflect-metadata';
+import { createCliContainer } from './shared/container/cli-container.js';
 import { program } from 'commander';
 import { Command } from './cli/interfaces/command.interface.js';
 import { HelpCommand } from './cli/commands/help.command.js';
@@ -6,10 +8,12 @@ import { VersionCommand } from './cli/commands/version.command.js';
 import { GenerateCommand } from './cli/commands/generate.command.js';
 import { ImportCommand } from './cli/commands/import.command.js';
 
+const container = createCliContainer();
+
 const commands: Command[] = [
   new HelpCommand(),
   new VersionCommand(),
-  new ImportCommand(),
+  container.resolve(ImportCommand),
   new GenerateCommand(),
 ];
 
