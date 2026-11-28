@@ -109,9 +109,9 @@ export class OfferService {
     return this.findById(id, userId);
   }
 
-  public async update(id: string, dto: UpdateOfferDto, authorId: string) {
+  public async update(id: string, dto: UpdateOfferDto, authorId?: string) {
     const offer = await OfferModel.findOneAndUpdate(
-      { _id: id, author: authorId }, { $set: this.offerFields(dto) }, { new: true },
+      { _id: id, ...(authorId ? { author: authorId } : {}) }, { $set: this.offerFields(dto) }, { new: true },
     ).exec();
     if (!offer) {
       if (await OfferModel.exists({ _id: id })) {
@@ -122,8 +122,8 @@ export class OfferService {
     return this.findById(id, authorId);
   }
 
-  public async delete(id: string, authorId: string): Promise<void> {
-    const offer = await OfferModel.findOneAndDelete({ _id: id, author: authorId }).exec();
+  public async delete(id: string, authorId?: string): Promise<void> {
+    const offer = await OfferModel.findOneAndDelete({ _id: id, ...(authorId ? { author: authorId } : {}) }).exec();
     if (!offer) {
       if (await OfferModel.exists({ _id: id })) {
         throw new HttpError(StatusCodes.FORBIDDEN, 'Access denied');

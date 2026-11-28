@@ -10,7 +10,7 @@ export abstract class Controller implements ControllerInterface {
   public readonly router = Router();
 
   protected addRoute(route: Route): void {
-    this.router[route.method](route.path, ...(route.middleware ?? []), asyncHandler(route.handler.bind(this)));
+    this.router[route.method](route.path, ...(route.middleware ?? []).map((middleware) => asyncHandler(middleware.execute.bind(middleware))), asyncHandler(route.handler.bind(this)));
   }
 
   protected ok<T>(response: Response, data: T): void {

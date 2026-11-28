@@ -1,3 +1,4 @@
+import { CommentController } from '../modules/comment/comment.controller.js';
 import { UserController } from '../modules/user/user.controller.js';
 import { OfferController } from '../modules/offer/offer.controller.js';
 import { AuthController } from '../modules/auth/auth.controller.js';
@@ -32,6 +33,8 @@ export function createRestContainer(): Container {
   container.bind<AuthController>(Component.AuthController).to(AuthController).inSingletonScope();
   container.bind<AuthService>(Component.AuthService).to(AuthService).inSingletonScope();
   container.bind<ExceptionFilter>(Component.ExceptionFilter).to(ExceptionFilter).inSingletonScope();
+
+  container.bind<CommentController>(Component.CommentController).to(CommentController).inSingletonScope();
 
   return container;
 }

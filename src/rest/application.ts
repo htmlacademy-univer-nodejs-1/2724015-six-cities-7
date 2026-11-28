@@ -1,3 +1,4 @@
+import { CommentController } from '../shared/modules/comment/comment.controller.js';
 import express, { Express } from 'express';
 import { Server } from 'node:http';
 import { StatusCodes } from 'http-status-codes';
@@ -23,6 +24,7 @@ export class Application {
     @inject(Component.Database) private readonly database: Database,
     @inject(Component.Logger) private readonly logger: Logger,
     @inject(Component.Config) private readonly config: Config,
+    @inject(Component.CommentController) private readonly comments: CommentController,
     @inject(Component.UserController) private readonly users: UserController,
     @inject(Component.OfferController) private readonly offers: OfferController,
     @inject(Component.AuthController) private readonly authController: AuthController,
@@ -38,6 +40,7 @@ export class Application {
 
   private registerControllers(): void {
     this.app.use('/users', this.users.router);
+    this.app.use('/offers', this.comments.router);
     this.app.use('/offers', this.offers.router);
     this.app.use('/auth', this.authController.router);
   }
